@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="/static/sakura-earthly.css">
+  <link rel="stylesheet" href="/static/search.css">
+  <title>{{request.args.get('q',"Home")}} {{theme.title}}</title>
+  <link rel="shortcut icon" type="image/png" href="/static/favicon.png"/>
+  <link rel="search"
+      type="application/opensearchdescription+xml"
+      title="LCARS search"
+      href="/static/search.xml">
+
+</head>
+<body>
+  <header>
+    <a href="/"><h1>{{theme.tagline}}</h1></a>
+    <form action="/search/" method="get" class="searchform">
+      <input type="search" spellcheck=true class="searchinput" name="q" value="{{request.args.get('q',"")}}">
+      <input type="submit" value="Search">
+    </form>
+    {# Handle menu links #}
+    {% for line in theme.menu_links.split('\n') %}
+        {% if line %}
+            <a href="{{line.split('|')[1]}}">{{line.split('|')[0]}}</a>
+            {% if not loop.last -%}|{% endif -%}
+        {% endif %}
+    {% endfor %}
+    <hr>
+  </header>
+
+  {% block content %}
+  {% endblock content %}
+
+</body>
+</html> 

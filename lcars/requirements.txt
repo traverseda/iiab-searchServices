@@ -1,0 +1,7 @@
+requests
+flask
+gunicorn
+jinja2
+zict
+lmdb
+msgpack

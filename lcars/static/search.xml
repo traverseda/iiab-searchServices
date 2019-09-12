@@ -1,0 +1,12 @@
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/"
+                       xmlns:moz="http://www.mozilla.org/2006/browser/search/">
+  <ShortName>LCARS</ShortName>
+  <Description>The search engine for Alex's Bus</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <Image width="16" height="16" type="image/x-icon">/static/favicon.ico</Image>
+  <Url type="text/html" template="/search/">
+    <Param name="q" value="{searchTerms}"/>
+  </Url>
+  <Url type="application/x-suggestions+json" template="[suggestionURL]"/>
+  <moz:SearchForm>/search/</moz:SearchForm>
+</OpenSearchDescription>
