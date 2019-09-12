@@ -1,3 +1,6 @@
+![Home page](home.png)
+![Results page](results.png)
+
 Simple website search using flask/xapian. Originally I was going to use
 OpenSemanticSearch, but I found it far too difficult to get working on armbian,
 so I settled on simple text search instead.
