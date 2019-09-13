@@ -12,9 +12,7 @@
 <article class="searchResult">
     <a href={{match.url}}><h3>{{match.title}}</h3></a>
     <h4>{{match.url}}</h4>
-    {% for sentance in match.summary %}
-    <p>{{sentance}}</p>
-    {% endfor %}
+    {{match.snippet|safe}}
     <hr>
 </article>
 {% else %}

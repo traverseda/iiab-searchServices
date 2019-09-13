@@ -1,5 +1,5 @@
 from flask import Flask, request, send_from_directory, render_template, redirect
-from settings import config
+from settings import config, indexDataDb
 
 # set the project root directory as the static folder, you can set others.
 app = Flask(__name__, static_url_path='/static/')
@@ -45,7 +45,11 @@ def search():
     page = int(request.args.get('page','1'))-1
     pageSize = int(request.args.get('pageSize','20'))
     matches = enquire.get_mset(page, pageSize)
-    matchData = map(json.loads,(m.document.get_data().decode("utf-8") for m in matches))
+    matchData = list(map(json.loads,(m.document.get_data().decode("utf-8") for m in matches)))
+    for data in matchData:
+        bodyText = indexDataDb[data['url']+'bodyText']
+        matchText = matches.snippet(bodyText).decode('utf-8')
+        data['snippet']=matchText
 
     pages = math.ceil(matches.get_matches_estimated()/pageSize)
 

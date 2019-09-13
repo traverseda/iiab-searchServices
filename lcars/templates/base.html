@@ -4,7 +4,7 @@
   <link rel="stylesheet" href="/static/sakura-earthly.css">
   <link rel="stylesheet" href="/static/search.css">
   <title>{{request.args.get('q',"Home")}} {{theme.title}}</title>
-  <link rel="shortcut icon" type="image/png" href="/static/favicon.png"/>
+  {% block favicon %}<link rel="shortcut icon" type="image/png" href="/static/favicon.png"/>{% endblock favicon %}
   <link rel="search"
       type="application/opensearchdescription+xml"
       title="LCARS search"

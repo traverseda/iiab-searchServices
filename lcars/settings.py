@@ -6,6 +6,8 @@ config.read('./defaults.cfg')
 import xapian
 xapian.WritableDatabase(config['Search']['index_dir'], xapian.DB_CREATE_OR_OPEN)
 
+#Waiting on https://bugs.python.org/issue1410680 for preserving comments
+#At that point we can do some fun things with plugins.
 #with open('example.cfg', 'w+') as configfile:
 #  config.write(configfile)
 

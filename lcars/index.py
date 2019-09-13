@@ -24,25 +24,6 @@ def saveToIndex(bodyText, data):
 
     db.replace_document("Q"+data['url'], doc)
 
-from sumy.parsers.html import HtmlParser
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.edmundson import EdmundsonSummarizer as Summarizer
-from sumy.nlp.stemmers import Stemmer
-from sumy.utils import get_stop_words
-
-def summarize(text, LANGUAGE = "english", SENTENCES_COUNT = 10,):
-    parser = PlaintextParser.from_string(text, Tokenizer(LANGUAGE))
-    stemmer = Stemmer(LANGUAGE)
-
-    summarizer = Summarizer(stemmer)
-    summarizer.null_words = get_stop_words(LANGUAGE)
-    summarizer.bonus_words = parser.significant_words
-    summarizer.stigma_words = parser.stigma_words
-
-    return map(str, summarizer(parser.document, 10))
-
-
 def dedupe():
     pass
 
@@ -95,7 +76,7 @@ def scrapeSite(url,root=None):
     html.make_links_absolute(url, resolve_base_href=True)
     bodyText = "".join(html.itertext())
     data = {
-        "summary": list(summarize(bodyText))[:3],
+#        "summary": list(summarize(bodyText))[:3],
         "title": title,
         "url": url,
         "hash": hashStr,
@@ -104,6 +85,7 @@ def scrapeSite(url,root=None):
     }
     saveToIndex(bodyText,data)
 
+    indexDataDb[url+'bodyText']=bodyText
     indexDataDb[url+'lastIndexDate']=int(time.time())
     indexDataDb[url+'contentType']=response.headers.get('Content-Type',"")
     indexDataDb[url+'lastModifiedHeader']=response.headers.get("Last-Modified",None)
@@ -116,5 +98,5 @@ def scrapeSite(url,root=None):
 
 huey.immediate = True
 #scrapeSite("https://xapian.org/docs/omega/termprefixes.html")
-scrapeSite("http://www.islandone.org/MMSG/aasm/AASMIndex.html",root="http://www.islandone.org/MMSG/aasm/")
+scrapeSite("http://www.islandone.org/MMSG/aasm/AASMIndex.html", root="http://www.islandone.org")
 
