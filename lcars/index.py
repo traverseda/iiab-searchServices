@@ -1,8 +1,6 @@
 import xapian, json
-from huey import SqliteHuey
-from settings import indexDataDb, config
-huey = SqliteHuey(filename='./queue.sqlite')
-dbpath = config['Search']['index_dir']
+from lcars.settings import indexDataDb, huey, XAPIAN_INDEX
+dbpath = str(XAPIAN_INDEX)
 
 @huey.lock_task('xapian-writer')
 def saveToIndex(bodyText, data):
@@ -23,9 +21,6 @@ def saveToIndex(bodyText, data):
     doc.set_data(json.dumps(data))
 
     db.replace_document("Q"+data['url'], doc)
-
-def dedupe():
-    pass
 
 import requests, lxml
 import lxml.html
@@ -76,7 +71,6 @@ def scrapeSite(url,root=None):
     html.make_links_absolute(url, resolve_base_href=True)
     bodyText = "".join(html.itertext())
     data = {
-#        "summary": list(summarize(bodyText))[:3],
         "title": title,
         "url": url,
         "hash": hashStr,
@@ -96,7 +90,7 @@ def scrapeSite(url,root=None):
         if link.startswith(root):#Only process urls that are children of root
             scrapeSite(link)
 
-huey.immediate = True
+#huey.immediate = True
 #scrapeSite("https://xapian.org/docs/omega/termprefixes.html")
-scrapeSite("http://www.islandone.org/MMSG/aasm/AASMIndex.html", root="http://www.islandone.org")
+#scrapeSite("http://www.islandone.org/MMSG/aasm/AASMIndex.html", root="http://www.islandone.org")
 

@@ -1,12 +1,12 @@
 from flask import Flask, request, send_from_directory, render_template, redirect
-from settings import config, indexDataDb
+from settings import indexDataDb, XAPIAN_INDEX, THEME
 
 # set the project root directory as the static folder, you can set others.
 app = Flask(__name__, static_url_path='/static/')
 
 @app.context_processor
 def inject_settings_theme():
-    return dict(theme=config['Theme'])
+    return dict(theme=THEME)
 
 @app.route('/static/<path:path>')
 def send_static(path):
@@ -17,7 +17,7 @@ def page_not_found(e):
     return render_template('404.html'), 404
 
 import xapian
-db = xapian.Database(config['Search']['index_dir'])
+db = xapian.Database(str(XAPIAN_INDEX))
 
 import xapian
 queryparser = xapian.QueryParser()
@@ -43,7 +43,7 @@ def search():
     enquire = xapian.Enquire(db)
     enquire.set_query(query)
     page = int(request.args.get('page','1'))-1
-    pageSize = int(request.args.get('pageSize','20'))
+    pageSize = int(request.args.get('pageSize','8'))
     matches = enquire.get_mset(page, pageSize)
     matchData = list(map(json.loads,(m.document.get_data().decode("utf-8") for m in matches)))
     for data in matchData:
@@ -51,7 +51,7 @@ def search():
         matchText = matches.snippet(bodyText).decode('utf-8')
         data['snippet']=matchText
 
-    pages = math.ceil(matches.get_matches_estimated()/pageSize)
+    pages = math.ceil(matches.get_matches_estimated()/pageSize)+1
 
     correction = queryparser.get_corrected_query_string()
     t = render_template("search.html",

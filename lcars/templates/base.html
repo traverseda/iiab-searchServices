@@ -19,11 +19,9 @@
       <input type="submit" value="Search">
     </form>
     {# Handle menu links #}
-    {% for line in theme.menu_links.split('\n') %}
-        {% if line %}
-            <a href="{{line.split('|')[1]}}">{{line.split('|')[0]}}</a>
-            {% if not loop.last -%}|{% endif -%}
-        {% endif %}
+    {% for name, link in theme.menu_links.items() %}
+        <a href="{{link}}">{{name}}</a>
+        {% if not loop.last -%}|{% endif -%}
     {% endfor %}
     <hr>
   </header>

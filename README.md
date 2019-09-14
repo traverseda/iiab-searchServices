@@ -26,3 +26,4 @@ the choice to push that down to the filesystem layer as that allows for better
 customization of speed/performance tradeoffs. BTRFS's `zstd` support is quite a
 bit faster than python's zlib, and I don't want to be supporting a bunch of
 different compression options.
+

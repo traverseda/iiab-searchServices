@@ -5,8 +5,6 @@ https://packaging.python.org/guides/distributing-packages-using-setuptools/
 https://github.com/pypa/sampleproject
 """
 
-raise NotImplemented
-
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 from os import path
@@ -119,7 +117,8 @@ setup(
     #
     #   py_modules=["my_module"],
     #
-    packages=find_packages(exclude=[,]),  # Required
+    py_modules=["lcars",],
+#    packages=find_packages(exclude=[,]),  # Required
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
@@ -172,11 +171,14 @@ setup(
     #
     # For example, the following would provide a command called `sample` which
     # executes the function `main` from this package when invoked:
-#    entry_points={  # Optional
-#        'console_scripts': [
-#            'sample=sample:main',
-#        ],
-#    },
+    entry_points={  # Optional
+        'console_scripts': [
+     #       'lcars=lcars.lcars:main',
+        ],
+        'lcars_tasks': [
+            'indexTasks=lcars.index:huey'
+        ],
+    },
 
     # List additional URLs that are relevant to your project as a dict.
     #
