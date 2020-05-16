@@ -1,96 +1,64 @@
-import xapian, json
-from lcars.settings import indexDataDb, huey, XAPIAN_INDEX
-dbpath = str(XAPIAN_INDEX)
+from whoosh.fields import Schema, TEXT, KEYWORD, ID, STORED, IDLIST, DATETIME
+from whoosh.analysis import StemmingAnalyzer
+from whoosh import fields, index
 
-@huey.lock_task('xapian-writer')
-def saveToIndex(bodyText, data):
-    db = xapian.WritableDatabase(dbpath, xapian.DB_CREATE_OR_OPEN)
-    doc = xapian.Document()
+schema = Schema(url=ID(stored=True,unique=True),
+                title=ID(stored=True),
+                links=IDLIST(stored=True),
+                body=TEXT(analyzer=StemmingAnalyzer()),
+                last_index=DATETIME,
+                #For when creating the highlights again would take too long.
+                body_cached=TEXT(analyzer=StemmingAnalyzer(),stored=True),
+                tags=KEYWORD(lowercase=True,stored=True,))
 
-    termgenerator = xapian.TermGenerator()
-    termgenerator.set_document(doc)
-    termgenerator.set_database(db)
-    termgenerator.set_stemmer(xapian.Stem("en"))
+import settings
 
-    termgenerator.index_text(data['title'], 1, 'S')
-    termgenerator.index_text(data['title'])
-    termgenerator.increase_termpos()
-    termgenerator.index_text(bodyText)
+(settings.data_root/"searchIndex").mkdir(parents=True, exist_ok=True)
+searchIndex = index.create_in(settings.data_root/"searchIndex", schema)
 
-    doc.add_boolean_term("Q"+data['url'])
-    doc.set_data(json.dumps(data))
-
-    db.replace_document("Q"+data['url'], doc)
-
-import requests, lxml
-import lxml.html
-from lxml.html.clean import Cleaner
-import hashlib, base64
+from selectolax.parser import HTMLParser
 import time
-@huey.task()
-def scrapeSite(url,root=None):
-    #This code is pretty unclead. ToDo: rewrite the scrapeSite function to be clearer
-    url = url.split("#")[0]
-    db = xapian.Database(dbpath)
-    session = requests.Session()
-    #Don't redownload the same url over and over again
-    lastIndex = indexDataDb.get(url+'lastIndexDate',0)
-    if time.time()-lastIndex < 30*60:
-        #Don't re-index within a 30 minute window
-        return
-    modifiedTime = indexDataDb.get(url+'lastModifiedHeader',None)
-    if modifiedTime:
-        session.headers.update({'If-Modified-Since': modifiedTime})
-    contentType = indexDataDb.get(url+'contentType',None)
-    if contentType != None and not contentType.startswith('text'):
-        #Don't bother indexing binary data
-        return
+import requests
+import unicodedata
+from functools import wraps
 
-    response = session.get(url)
-    if response.status_code == 304:
-        indexDataDb[url+'lastIndexDate']=int(time.time())
-        return
-    contentType = response.headers.get('Content-Type',"")
-    indexDataDb[url+'contentType']= contentType
-    if not contentType.startswith('text'):
-        return
+def cache_if_slow(func):
+    """Moves body to body_cached if text takes too long
+    to collect.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start=time.monotonic()
+        result = func(*args,**kwargs)
+        timeDiff=time.monotonic()-start
+        if timeDiff > 0.4:
+            result['body_cached']=result['body']
+            del result['body']
+        return result
+    return wrapper
 
-    print(url)
+@cache_if_slow
+def index_html(url):
+    r = requests.get(url)
+    tree = HTMLParser(r.text)
+    #Remove non-text "text" content.
+    for tag in tree.css('script'):
+        tag.decompose()
+    for tag in tree.css('style'):
+        tag.decompose()
+    links = [ i.attrs['href'] for i in tree.tags("a") ]
+    links = { requests.compat.urljoin(url,i).split("#")[0].split('?')[0] for i in links }
+    text = tree.body.text(separator='\n')
+    entry = dict(
+        url=url,
+        links=links,
+        body=text,
+        title=tree.css_first("title").text() or url,
+    )
+    return entry
 
-    h = hashlib.sha256()
-    h.update(response.content)
-    hashStr = base64.b64encode(h.digest()).decode("utf-8")
+def index_pdf(url):
+    raise NotImplemented
 
-    cleaner = Cleaner()
-    cleaner.javascript = True
-    cleaner.style = True
-
-    html = lxml.html.fromstring(response.content)
-    title= html.find(".//title").text
-    html = cleaner.clean_html(html)
-    html.make_links_absolute(url, resolve_base_href=True)
-    bodyText = "".join(html.itertext())
-    data = {
-        "title": title,
-        "url": url,
-        "hash": hashStr,
-        "lastIndexDate": int(time.time()),
-        "lastModified": response.headers.get("Last-Modified",""),
-    }
-    saveToIndex(bodyText,data)
-
-    indexDataDb[url+'bodyText']=bodyText
-    indexDataDb[url+'lastIndexDate']=int(time.time())
-    indexDataDb[url+'contentType']=response.headers.get('Content-Type',"")
-    indexDataDb[url+'lastModifiedHeader']=response.headers.get("Last-Modified",None)
-
-    if not root: return #Don't process children if there's no root
-    links = (i[2] for i in html.iterlinks())
-    for link in links:
-        if link.startswith(root):#Only process urls that are children of root
-            scrapeSite(link)
-
-#huey.immediate = True
-#scrapeSite("https://xapian.org/docs/omega/termprefixes.html")
-#scrapeSite("http://www.islandone.org/MMSG/aasm/AASMIndex.html", root="http://www.islandone.org")
-
+def index_epub(url):
+    raise NotImplemented

@@ -1,8 +1,15 @@
 from flask import Flask, request, send_from_directory, render_template, redirect
-from settings import indexDataDb, XAPIAN_INDEX, THEME
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.serving import run_simple
+import api
+from settings import THEME
 
 # set the project root directory as the static folder, you can set others.
 app = Flask(__name__, static_url_path='/static/')
+
+server = DispatcherMiddleware(app, {
+    "/api":api.__hug_wsgi__,
+})
 
 @app.context_processor
 def inject_settings_theme():
@@ -16,18 +23,6 @@ def send_static(path):
 def page_not_found(e):
     return render_template('404.html'), 404
 
-import xapian
-db = xapian.Database(str(XAPIAN_INDEX))
-
-import xapian
-queryparser = xapian.QueryParser()
-queryparser.set_stemmer(xapian.Stem("en"))
-queryparser.set_stemming_strategy(queryparser.STEM_SOME)
-queryparser.set_database(db)
-queryparser.add_boolean_prefix("url","Q")
-
-flags = queryparser.FLAG_DEFAULT|queryparser.FLAG_SPELLING_CORRECTION
-
 import json, math
 
 @app.route('/search/')
@@ -38,22 +33,9 @@ def search():
         #Redirect to google, like duck duck go.
         return redirect("https://google.ca/search?q="+q.replace("!g","").replace("!google",""))
 
-    query = queryparser.parse_query(q, flags)
-
-    enquire = xapian.Enquire(db)
-    enquire.set_query(query)
     page = int(request.args.get('page','1'))-1
     pageSize = int(request.args.get('pageSize','8'))
-    matches = enquire.get_mset(page, pageSize)
-    matchData = list(map(json.loads,(m.document.get_data().decode("utf-8") for m in matches)))
-    for data in matchData:
-        bodyText = indexDataDb[data['url']+'bodyText']
-        matchText = matches.snippet(bodyText).decode('utf-8')
-        data['snippet']=matchText
 
-    pages = math.ceil(matches.get_matches_estimated()/pageSize)+1
-
-    correction = queryparser.get_corrected_query_string()
     t = render_template("search.html",
                             query=query,
                             pages=pages,
@@ -70,6 +52,7 @@ def home():
     return render_template("home.html")
 
 if __name__ == "__main__":
-    app.run()
+    run_simple('localhost', 8000, server,
+               use_reloader=True, use_debugger=True, use_evalex=True)
 
 
