@@ -1,3 +1,6 @@
+# This does not currently work!
+## WIP, I'm re-writing the search spiders and swapping out the search backend
+
 ![Home page](home.png)
 ![Results page](results.png)
 
@@ -68,6 +71,12 @@ than other libraries like xapian. In order to meet our goals we need a search
 engine *library*, not a server/service, which makes a lot of search backend
 inaccesable.
 
+That being said I think whoosh is a pretty good choice over-all, it seems to
+create indexes an order of [magnitude faster than xapian at
+indexing](https://stackoverflow.com/a/30452913) and is only a little bit slower
+at querying. Presumably if run under pypy it would be faster than xapian all
+around? Hopefully that performance scales to bigger datasets.
+
 We use textract to extract text from more complicated dataformats, you can
 see how that works
 [here](https://textract.readthedocs.io/en/stable/#currently-supporting).
@@ -80,3 +89,7 @@ open an issue, it's not just for bug/feature-requests.
 If you're writing a new app you can integrate with the api to update indexes.
 Otherwise you probably want to use things like cron (timers) and incron (run
 command when files change) and the command line interface.
+
+# Developing
+
+ToDo: documentation on how to extend this with custom data extractors

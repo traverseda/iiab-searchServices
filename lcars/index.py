@@ -22,6 +22,18 @@ import requests
 import unicodedata
 from functools import wraps
 
+mimetype_handlers = {
+}
+
+def handle_mimetype(mimetypes):
+    def register_mimetype(func,mimetypes=mimetypes):
+        if type(mimetypes) == str:
+            mimetypes = (mimetypes,)
+        for mimetype in mimetypes:
+            mimetype_handlers[mimetype]=func
+        return func
+    return register_mimetype
+
 def cache_if_slow(func):
     """Moves body to body_cached if text takes too long
     to collect.
@@ -37,6 +49,7 @@ def cache_if_slow(func):
         return result
     return wrapper
 
+@handle_mimetype("text/html")
 @cache_if_slow
 def index_html(url):
     r = requests.get(url)
@@ -62,3 +75,4 @@ def index_pdf(url):
 
 def index_epub(url):
     raise NotImplemented
+

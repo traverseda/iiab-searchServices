@@ -27,7 +27,6 @@ import json, math
 
 @app.route('/search/')
 def search():
-    db.reopen()
     q = request.args.get('q','')
     if "!g" in q or "!google" in q:
         #Redirect to google, like duck duck go.

@@ -173,7 +173,8 @@ setup(
     # executes the function `main` from this package when invoked:
     entry_points={  # Optional
         'console_scripts': [
-     #       'lcars=lcars.lcars:main',
+            'lcars-server=lcars.server:main',
+            'lcars-cli=lcars.api:main',
         ],
         'lcars_tasks': [
             'indexTasks=lcars.index:huey'
