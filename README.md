@@ -16,7 +16,7 @@ be a good fit for internet-in-a-box as well.
  * Simple to set up, no need for docker, no dependencies on other services
  * Avoid duplicating data (data retrieval needs to be fast for snippets to work
      without caching)
- * Return results in under 0.6 seconds
+ * Return results in under 1 second
  * Works on low-ish power/memory systems like the raspberry PI (or worse)
  * JSON(rest-ish) API
  * Expose CLI commands for all API endpoints
@@ -25,16 +25,6 @@ be a good fit for internet-in-a-box as well.
 
 We use whoosh as our search engine, and huey with the sqlite backend as a
 task-queue, although it could also use redis for distributed crawling.
-
-# Compression
-
-It's highly recomended to use this with a file system that supports in-line
-compression, for example btrfs. There are various points in this system where I
-*could* have enabled compression, and gotten some pretty good gains, but I made
-the choice to push that down to the filesystem layer as that allows for better
-customization of speed/performance tradeoffs. BTRFS's `zstd` support is quite a
-bit faster than python's zlib, and I don't want to be supporting a bunch of
-different compression options.
 
 # Alternatives
 
@@ -58,11 +48,6 @@ have higher system requirments.
      but you need to feed it files not web pages. Created for the-eye-dot-eu, a
      large public archive of mostly pdfs and epubs.
 
-# Performance
-
-Python whoosh seems to perform a bit slower that xapian at retrieval, but
-indexes a fair bit faster.
-
 # Technology
 
 We use the "whoosh" search engine because it's reasonably responive, doesn't
@@ -83,7 +68,19 @@ see how that works
 
 # Usage
 
-I will try to be pretty resonsive, so if you have any questions feel free to
+## Quickstart
+
+```bash
+pip install --user pipx
+pipx install git+https://github.com/traverseda/iiab-searchServices.git
+lcars-taskrunner & #Run tasks in the background
+lcars-server & #Run web server in the background
+lcars-cli index http://someurl
+```
+
+## Development
+
+I will try to be pretty responsive, so if you have any questions feel free to
 open an issue, it's not just for bug/feature-requests.
 
 If you're writing a new app you can integrate with the api to update indexes.
@@ -93,3 +90,4 @@ command when files change) and the command line interface.
 # Developing
 
 ToDo: documentation on how to extend this with custom data extractors
+ToDo: Allow removing urls that no longer exist (and all their descendents)

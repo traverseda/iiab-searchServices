@@ -7,3 +7,4 @@ selectolax
 hug
 huey
 textract
+appdirs

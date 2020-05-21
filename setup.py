@@ -43,7 +43,7 @@ setup(
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#summary
-    description='Search services for internet-in-a-box',  # Optional
+    description='Simple search interface for media collections',  # Optional
 
     # This is an optional longer description of your project that represents
     # the body of text which users will see when they visit PyPI.
@@ -176,9 +176,9 @@ setup(
             'lcars-server=lcars.server:main',
             'lcars-cli=lcars.api:main',
         ],
-        'lcars_tasks': [
-            'indexTasks=lcars.index:huey'
-        ],
+#        'lcars_tasks': [
+#            'indexTasks=lcars.index:huey'
+#        ],
     },
 
     # List additional URLs that are relevant to your project as a dict.
