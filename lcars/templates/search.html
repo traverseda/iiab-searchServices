@@ -1,32 +1,34 @@
 {% extends 'base.html' %}
 
 {% block content %}
+
 <div class='searchInfo'>
-    <span>Query: <code>{{(query|string)[7:-2]}}</code></span>
-    <span>Results: {{matches.get_matches_estimated()}}</span>
+    <span>Query: <code>{{searchResult.query_parsed}}</code></span>
+    <span>Results: {{searchResult.result_count}}</span>
 </div>
-{% if correction %}
-<p>Did you mean: <a href="/search/?q={{correction.decode("utf-8")}}">{{correction.decode("utf-8")}}</a></p>
+{% if searchResult.corrected != searchResult.query_text %}
+<p>Did you mean: <a href="/search/?q={{searchResult.corrected}}">{{searchResult.corrected}}</a></p>
 {% endif %}
-{% for match in matchData %}
+{% for match in  searchResult.results %}
 <article class="searchResult">
     <a href={{match.url}}><h3>{{match.title}}</h3></a>
     <h4>{{match.url}}</h4>
-    {{match.snippet|safe}}
+    {{match.highlights|safe}}
     <hr>
 </article>
 {% else %}
 <h2>No results found</h2>
 {% endfor %}
 <form action="/search/" method="get" class="searchPagination">
-    <input type="hidden" name="q" value="{{request.args.get('q',"")}}">
-    {% for i in range(1,pages) %}
-    {% if i|string == request.args.get('page','1') %}
-    <button type="submit" name="page" value="{{i}}">{{i}}</button> 
+    <input type="hidden" name="q" value="{{searchResult.query_text}}">
+    <input type="hidden" name="limit" value="{{searchResult.limit}}">
+    {# ToDo: implement a proper paginator for this? #}
+    {% for i in range(searchResult.offset,searchResult.result_count//searchResult.limit+1) %}
+    {% if searchResult.offset/searchResult.limit == i %}
+    <button type="submit" name="offset" value="{{i*searchResult.limit}}">{{i*searchResult.limit}}</button> 
     {% else %}
-    <input type="submit" name="page" value="{{i}}"></input> 
+    <input type="button" name="offset" value="{{i*searchResult.limit}}"></input> 
     {% endif %}
     {% endfor %}
 </form>
-
 {% endblock content %}

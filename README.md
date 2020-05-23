@@ -22,9 +22,19 @@ be a good fit for internet-in-a-box as well.
  * Expose CLI commands for all API endpoints
  * Support clustering to minimize load on embedded devices
  * Extract data from many different types of files
+ * Configuration via env variables or env files, for "12factor" app
+     compatibility.
 
 We use whoosh as our search engine, and huey with the sqlite backend as a
 task-queue, although it could also use redis for distributed crawling.
+
+There are a few things that are notably absent, namely
+
+ * Security, the /api/ endpoint is not secured. For any kind of production use
+     consider securing it via your webserver configuration.
+ * Fair resource utilization, there is no rate limiting and even the normal
+     search page could time out if you set a high enough *limit*, getting it to
+     render all the results at once.
 
 # Alternatives
 
@@ -32,7 +42,7 @@ There are some more mature alternatives for intranet search that you might want
 to investigate. For the most part these will have better performance but also
 have higher system requirments.
 
- * Yacy, the "peer to peer" serach engine. I found this returned much better
+ * Yacy, the "peer to peer" search engine. I found this returned much better
      results on limited intranet datasets than on the general internet. You can
      set it as an intranet search without connecting to the peer to peer
      network. Very simple to deploy. Probably the one I'd recomend the most,

@@ -10,7 +10,7 @@ schema = Schema(url=ID(stored=True,unique=True),
                 last_indexed=DATETIME(stored=True),
                 tags=KEYWORD(lowercase=True,stored=True,))
 
-import settings
+import lcars.settings as settings
 
 indexDir = settings.data_root/"searchIndex"
 (settings.data_root/"searchIndex").mkdir(parents=True, exist_ok=True)
@@ -97,10 +97,27 @@ def get_last_index_time(url):
             return indexTime.strftime('%a, %d %b %Y %H:%M:%S GMT')
         return False
 
-from settings import HUEY as huey
+from lcars.settings import HUEY as huey
 #from whoosh.writing import AsyncWriter
 #writer = AsyncWriter(searchIndex)
 writer = searchIndex.writer()
+
+def get_highlights(hitItem):
+    """Turn a hitItem into a plain dict and generate highlights
+    for it.
+    """
+    #ToDo: Investigate whether or not loading this all into memory is
+    # a performance hit? I think the standard hitItem might be lazy-loading
+    # large fields like "body", but I'm not sure if it matters since we
+    # need to load the text to generate highlights anyway?
+    itemDict = hitItem.fields()
+    if not hitItem['body']:
+        metadata = requests.head(hitItem['url'])
+        mimetype = metadata.headers['content-type'].split(";")[0]
+        document = mimetype_handlers[mimetype](hitItem['url'])
+        itemDict['body'] = document['body']
+    itemDict['highlights'] = hitItem.highlights("body",text=hitItem['body'],top=5,)
+    return hitItem.fields()
 
 #@huey.task()
 def index(url, force=False):
@@ -110,7 +127,7 @@ def index(url, force=False):
             'If-Modified-Since':last_indexed,
         })
         if metadata.status_code==304:
-            print(f"Not grabbing `{url}` as it hasn't been modified")
+            print(f"Not indexing `{url}` as it hasn't been modified")
             return
     else:
         metadata = requests.head(url)
