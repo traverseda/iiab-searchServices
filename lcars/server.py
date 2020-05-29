@@ -2,7 +2,7 @@ from flask import Flask, request, send_from_directory, render_template, redirect
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
 import lcars.api as api
-from settings import THEME
+from lcars.settings import THEME
 
 # set the project root directory as the static folder, you can set others.
 app = Flask(__name__, static_url_path='/static/')
@@ -29,8 +29,9 @@ import lcars.api as api
 @app.route('/search/')
 def search():
     q = request.args.get('q','')
-    offset = int(request.args.get('offset','0'))
+    page = int(request.args.get('page','1'))
     limit = int(request.args.get('limit','10'))
+    offset = (page-1)*limit
     if "!g" in q or "!google" in q:
         #Redirect to google, like duck duck go.
         return redirect("https://google.ca/search?q="+q.replace("!g","").replace("!google",""))
@@ -48,7 +49,9 @@ def search():
 def home():
     return render_template("home.html")
 
-if __name__ == "__main__":
+def main():
     run_simple('localhost', 8000, server,
                use_reloader=True, use_debugger=True, use_evalex=True)
 
+if __name__ == "__main__":
+    main()

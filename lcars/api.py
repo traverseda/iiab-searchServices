@@ -24,11 +24,14 @@ def search(query:str, offset:int=0, limit:int=10):
 
 @hug.cli()
 @hug.get()
-def index(url:str):
+def index(url:str,recursive:bool=True,root:str=None):
     """ Add a url to the queue of pages to be indexed
     """
     from lcars.index import index
-    index(url)
+    if recursive and not root:
+        root = url
+    task = index(url,root=root)
+    print(f"task added to queue as: {task}")
 
 @hug.cli()
 @hug.get()

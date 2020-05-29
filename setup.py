@@ -119,6 +119,7 @@ setup(
     entry_points={  # Optional
         'console_scripts': [
             'lcars-server=lcars.server:main',
+            'lcars-tasks=lcars.tasks:main',
             'lcars-cli=lcars.api:main',
         ],
 #        'lcars_tasks': [

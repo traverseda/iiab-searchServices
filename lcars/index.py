@@ -53,6 +53,29 @@ def cache_if_slow(func):
         return result
     return wrapper
 
+
+@handle_mimetype("application/pdf")
+@cache_if_slow
+def index_textract(url):
+    import textract, tempfile, mimetypes
+    mimetypes.init()
+    response = requests.get(url,stream=True)
+    mimetype = response.headers['content-type'].split(";")[0]
+    suffix=mimetypes.guess_extension(mimetype)
+
+    tmpfile = tempfile.NamedTemporaryFile(suffix=suffix,prefix="lcars-")
+    with tmpfile as fp:
+        for chunk in response.iter_content(10000):
+            fp.write(chunk)
+        text = textract.process(fp.name,encoding="utf-8").decode("utf-8")
+    entry = dict(
+        url=url,
+        body=text,
+        last_indexed=datetime.datetime.utcnow(),
+        title=url,
+    )
+    return entry
+
 @handle_mimetype("text/html")
 @cache_if_slow
 def index_html(url):
@@ -63,15 +86,18 @@ def index_html(url):
         tag.decompose()
     for tag in tree.css('style'):
         tag.decompose()
-    links = [ i.attrs['href'] for i in tree.tags("a") ]
+    links = [ i.attrs.get('href',None) for i in tree.tags("a") ]
     links = [ requests.compat.urljoin(url,i).split("#")[0].split('?')[0] for i in links ]
     text = tree.body.text(separator='\n')
+    title = tree.css_first("title")
+    if title: title=title.text()
+    title = title or url
     entry = dict(
         url=url,
         links=links,
         body=text,
         last_indexed=datetime.datetime.utcnow(),
-        title=tree.css_first("title").text() or url,
+        title=title
     )
     return entry
 
@@ -98,9 +124,6 @@ def get_last_index_time(url):
         return False
 
 from lcars.settings import HUEY as huey
-#from whoosh.writing import AsyncWriter
-#writer = AsyncWriter(searchIndex)
-writer = searchIndex.writer()
 
 def get_highlights(hitItem):
     """Turn a hitItem into a plain dict and generate highlights
@@ -119,8 +142,14 @@ def get_highlights(hitItem):
     itemDict['highlights'] = hitItem.highlights("body",text=hitItem['body'],top=5,)
     return hitItem.fields()
 
-#@huey.task()
-def index(url, force=False):
+@huey.task()
+def index(url, root=None, force=False):
+    import urllib.parse
+    url = urllib.parse.unquote(url)
+
+    from whoosh.writing import AsyncWriter
+    writer = AsyncWriter(searchIndex)
+    #writer = searchIndex.writer()
     last_indexed = get_last_index_time(url)
     if last_indexed:
         metadata = requests.head(url,headers={
@@ -134,7 +163,12 @@ def index(url, force=False):
     mimetype = metadata.headers['content-type'].split(";")[0]
     if mimetype in mimetype_handlers.keys():
         document = mimetype_handlers[mimetype](url)
+        if root:
+            for link in document['links']:
+                if link.startswith(root):
+                    index(link)
         writer.update_document(**document)
         writer.commit()
         return
+    print(f"unhandled mimetype `{mimetype}` at {url}")
     return
