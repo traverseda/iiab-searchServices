@@ -41,6 +41,8 @@ def cache_if_slow(func):
     """Moves body to body_cached if text takes too long
     to collect.
     """
+    #ToDo, some way to differentiate between a missing body
+    # and one that is intentionally left blank...
     @wraps(func)
     def wrapper(*args, **kwargs):
         start=time.monotonic()

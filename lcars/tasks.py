@@ -7,9 +7,6 @@ from huey.utils import load_class
 import collections
 
 def main():
-    huey_instance = load_class("lcars.settings.HUEY")
-
-    consumer =  huey_instance.create_consumer()
     parser_handler = OptionParserHandler()
     parser = parser_handler.get_option_parser()
     options, args = parser.parse_args()
@@ -19,8 +16,11 @@ def main():
     config = ConsumerConfig(**collections.ChainMap(options,defaultConf))
     config.validate()
 
+    huey_instance = load_class("lcars.settings.HUEY")
+
     logger = logging.getLogger('huey')
     config.setup_logger(logger)
+    consumer =  huey_instance.create_consumer(**config.values)
     consumer.run()
 
 if __name__ == '__main__':
