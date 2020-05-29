@@ -8,7 +8,7 @@ def search(query:str, offset:int=0, limit:int=10):
     with searchIndex.searcher() as searcher:
         queryParsed = parser.parse(query)
         corrected = searcher.correct_query(queryParsed, query)
-        results = searcher.search(queryParsed)
+        results = searcher.search(queryParsed,limit=offset+limit)
         results.fragmenter.surround = 50
         data = dict(
             offset=offset,limit=limit,
