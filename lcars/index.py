@@ -30,10 +30,8 @@ from functools import wraps
 mimetype_handlers = {
 }
 
-def handle_mimetype(mimetypes):
+def handle_mimetype(*mimetypes):
     def register_mimetype(func,mimetypes=mimetypes):
-        if type(mimetypes) == str:
-            mimetypes = (mimetypes,)
         for mimetype in mimetypes:
             mimetype_handlers[mimetype]=func
         return func
@@ -54,25 +52,32 @@ def cache_if_slow(func):
     return wrapper
 
 
-@handle_mimetype("application/pdf")
+@handle_mimetype("application/pdf","application/epub+zip")
 @cache_if_slow
 def index_textract(url):
-    import textract, tempfile, mimetypes
-    mimetypes.init()
+    import textract, tempfile
     response = requests.get(url,stream=True)
-    mimetype = response.headers['content-type'].split(";")[0]
-    suffix=mimetypes.guess_extension(mimetype)
-
-    tmpfile = tempfile.NamedTemporaryFile(suffix=suffix,prefix="lcars-")
+    suffix = "."+url.split(".")[-1]
+    if suffix not in textract.parsers._get_available_extensions():
+        import mimetypes
+        mimetypes.init()
+        mimetype = response.headers['content-type'].split(";")[0]
+        suffix=mimetypes.guess_extension(mimetype)
+    suffix = url.split('/')[-1]
+    tmpfile = tempfile.NamedTemporaryFile("wb",suffix=suffix,prefix="lcars-searchspider-")
     with tmpfile as fp:
+        #ToDo: This only works on linux
         for chunk in response.iter_content(10000):
             fp.write(chunk)
-        text = textract.process(fp.name,encoding="utf-8").decode("utf-8")
+        fp.flush()
+        text = textract.process(fp.name,encoding="utf-8")
+    if not isinstance(text,str):
+        text=text.decode("utf-8")
     entry = dict(
         url=url,
         body=text,
         last_indexed=datetime.datetime.utcnow(),
-        title=url,
+        title=url.split('/')[-1] or url,
     )
     return entry
 
@@ -144,6 +149,7 @@ def get_highlights(hitItem):
 
 @huey.task()
 def index(url, root=None, force=False):
+    #ToDo, automatically delete trees that no longer exist...
     import urllib.parse
     url = urllib.parse.unquote(url)
 
@@ -161,8 +167,19 @@ def index(url, root=None, force=False):
     else:
         metadata = requests.head(url)
     mimetype = metadata.headers['content-type'].split(";")[0]
+    if mimetype not in mimetype_handlers.keys():
+        import mimetypes as mtypes
+        mimetype=mtypes.guess_type(url)[0]
     if mimetype in mimetype_handlers.keys():
-        document = mimetype_handlers[mimetype](url)
+        try:
+            document = mimetype_handlers[mimetype](url)
+        except Exception as e:
+            err = f"""
+    url: "{url}"
+    mimetype: {mimetype}
+    handler-name: {mimetype_handlers[mimetype]}
+    handler-file: {mimetype_handlers[mimetype].__code__.co_filename}"""
+            raise Exception(err) from e
         if root:
             for link in document['links']:
                 if link.startswith(root):

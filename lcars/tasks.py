@@ -1,8 +1,10 @@
 import lcars.index
+from lcars.settings import HUEY
 import logging
 from huey.consumer import Consumer
 from huey.consumer_options import ConsumerConfig, OptionParserHandler
 from huey.utils import load_class
+import collections
 
 def main():
     huey_instance = load_class("lcars.settings.HUEY")
@@ -13,7 +15,8 @@ def main():
     options, args = parser.parse_args()
     options = {k: v for k, v in options.__dict__.items()
            if v is not None}
-    config = ConsumerConfig(**options)
+    defaultConf = {'workers': 10, 'worker_type': 'process'}
+    config = ConsumerConfig(**collections.ChainMap(options,defaultConf))
     config.validate()
 
     logger = logging.getLogger('huey')

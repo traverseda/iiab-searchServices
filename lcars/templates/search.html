@@ -11,7 +11,7 @@
 {% endif %}
 {% for match in  searchResult.results %}
 <article class="searchResult">
-    <a href={{match.url}}><h3>{{match.title}}</h3></a>
+    <a href="{{match.url}}"><h3>{{match.title}}</h3></a>
     <h4>{{match.url}}</h4>
     {{match.highlights|safe}}
     <hr>
