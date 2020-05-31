@@ -83,7 +83,7 @@ see how that works
 ```bash
 pip install --user pipx
 pipx install git+https://github.com/traverseda/iiab-searchServices.git
-lcars-taskrunner & #Run tasks in the background
+lcars-tasks & #Run tasks in the background
 lcars-server & #Run web server in the background
 lcars-cli index http://someurl
 ```
