@@ -1,5 +1,6 @@
 import lcars.index
 from lcars.settings import HUEY
+from lcars.settings import settings
 import logging
 from huey.consumer import Consumer
 from huey.consumer_options import ConsumerConfig, OptionParserHandler

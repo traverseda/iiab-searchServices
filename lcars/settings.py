@@ -8,9 +8,10 @@ data_dir=user_data_dir("LCARS", "traverseda")
 defaultConf = {
     "redis_url": "",
     "data_root": data_dir,
-    "lcars_api_key": "",
+#    "lcars_api_key": "",
     'lcars_title': ' - lcars',
     'lcars_tasks_cache': '128',
+    'lcars_tasks_process_count': '4',
     'lcars_tagline':' Library Computer Access/Retrieval System',
     #Pipe and comma seperated list of extra menu links
     "extra_menu_urls": "",#example1,http://example.com|example2,http://example.com

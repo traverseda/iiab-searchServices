@@ -156,8 +156,8 @@ def index(url, root=None, force=False):
     url = urllib.parse.unquote(url)
 
     from whoosh.writing import AsyncWriter
-    #writer = AsyncWriter(searchIndex)
-    writer = searchIndex.writer(limitmb=settings['lcars_tasks_cache'])
+    writer = AsyncWriter(searchIndex)
+    #writer = searchIndex.writer()
     last_indexed = get_last_index_time(url)
     if last_indexed:
         metadata = requests.head(url,headers={
