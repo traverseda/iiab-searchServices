@@ -7,13 +7,15 @@ from huey.consumer_options import ConsumerConfig, OptionParserHandler
 from huey.utils import load_class
 import collections
 
+workers = int(settings['lcars_tasks_workers'])
+
 def main():
     parser_handler = OptionParserHandler()
     parser = parser_handler.get_option_parser()
     options, args = parser.parse_args()
     options = {k: v for k, v in options.__dict__.items()
            if v is not None}
-    defaultConf = {'workers': 10, 'worker_type': 'process'}
+    defaultConf = {'workers': workers, 'worker_type': 'process'}
     config = ConsumerConfig(**collections.ChainMap(options,defaultConf))
     config.validate()
 
