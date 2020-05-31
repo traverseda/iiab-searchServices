@@ -46,15 +46,16 @@ def monitor():
     """
     raise NotImplementedError
 
-@hug.cli()
+@hug.cli(output=hug.output_format.pretty_json)
 def env_info():
-    """Print information needed to create a uwsgi file
+    """Print information needed to create a uwsgi file, as well as all settings
     """
-    import sys, os
+    import sys, os, lcars.settings
     return dict(
         virtualenv=os.getenv("VIRTUAL_ENV",""),
         module="lcars.server:server",
         version=sys.version,
+        env_settings=lcars.settings.printable_settings()
     )
 
 @hug.cli(output=hug.output_format.pretty_json)

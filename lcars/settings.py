@@ -22,6 +22,9 @@ basesettings = collections.ChainMap(
 
 settings = collections.ChainMap(os.environ,basesettings)
 
+def printable_settings():
+    return {k:v for k,v in settings.items() if k in basesettings}
+
 from pathlib import Path
 
 THEME = {
