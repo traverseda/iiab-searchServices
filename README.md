@@ -1,5 +1,5 @@
-# This does not currently work!
-## WIP, I'm re-writing the search spiders and swapping out the search backend
+# Early pre-release
+## WIP, expect breaking changes.
 
 ![Home page](home.png)
 ![Results page](results.png)
