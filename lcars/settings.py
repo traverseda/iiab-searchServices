@@ -6,13 +6,14 @@ from appdirs import user_data_dir
 data_dir=user_data_dir("LCARS", "traverseda")
 
 defaultConf = {
-    "redis_url":"",
-    "data_root":data_dir,
-    "lcars_api_key":"",
-    'lcars_title':' - lcars',
-    'lcars_tagline':'Library Computer Access/Retrieval System',
+    "redis_url": "",
+    "data_root": data_dir,
+    "lcars_api_key": "",
+    'lcars_title': ' - lcars',
+    'lcars_tasks_cache': '128',
+    'lcars_tagline':' Library Computer Access/Retrieval System',
     #Pipe and comma seperated list of extra menu links
-    "extra_menu_urls":"",#example1,http://example.com|example2,http://example.com
+    "extra_menu_urls": "",#example1,http://example.com|example2,http://example.com
 }
 
 basesettings = collections.ChainMap(
@@ -39,5 +40,4 @@ if settings['redis_url']:
     HUEY=RedisHuey(url=settings['redis_url'])
 else:
     from huey import SqliteHuey
-    HUEY=SqliteHuey(filename=data_root/"queue.sqlite3")
-
+    HUEY=SqliteHuey(filename=data_root/"queue.sqlite3",cache_mb=10)

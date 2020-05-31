@@ -65,8 +65,8 @@ def index_textract(url):
         mimetypes.init()
         mimetype = response.headers['content-type'].split(";")[0]
         suffix=mimetypes.guess_extension(mimetype)
-    suffix = url.split('/')[-1]
-    tmpfile = tempfile.NamedTemporaryFile("wb",suffix=suffix,prefix="lcars-searchspider-")
+    suffix = "-"+url.split('/')[-1]
+    tmpfile = tempfile.NamedTemporaryFile("wb",suffix=suffix,prefix="lcars-searchspider-",buffering=False)
     with tmpfile as fp:
         #ToDo: This only works on linux
         for chunk in response.iter_content(10000):
@@ -156,8 +156,8 @@ def index(url, root=None, force=False):
     url = urllib.parse.unquote(url)
 
     from whoosh.writing import AsyncWriter
-    writer = AsyncWriter(searchIndex)
-    #writer = searchIndex.writer()
+    #writer = AsyncWriter(searchIndex)
+    writer = searchIndex.writer(limitmb=settings['lcars_tasks_cache'])
     last_indexed = get_last_index_time(url)
     if last_indexed:
         metadata = requests.head(url,headers={

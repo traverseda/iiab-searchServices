@@ -8,3 +8,4 @@ hug
 huey
 textract
 appdirs
+environs

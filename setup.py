@@ -15,6 +15,9 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+with open('requirements.txt') as f:
+    required = f.read().splitlines()
+
 setup(
     name='lcars',
     version='0.1.0',
@@ -63,7 +66,11 @@ setup(
     #
     #   py_modules=["my_module"],
     #
-    py_modules=["lcars",],
+    packages=find_packages(),
+    package_data={
+        'lcars': ('static/*','templates/*'),
+    },
+#    py_modules=["lcars",],
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
@@ -78,6 +85,7 @@ setup(
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
+    install_requires=required,
 #    install_requires=['peppercorn'],  # Optional
 
     # List additional groups of dependencies here (e.g. development
