@@ -1,8 +1,8 @@
 import lcars.index
-from lcars.settings import HUEY
+from lcars.settings import HUEY, HUEY_SINGLETON
 from lcars.settings import settings
 import logging
-from huey.consumer import Consumer
+from huey.consumer import Consumer, Worker
 from huey.consumer_options import ConsumerConfig, OptionParserHandler
 from huey.utils import load_class
 import collections
@@ -24,6 +24,13 @@ def main():
     logger = logging.getLogger('huey')
     config.setup_logger(logger)
     consumer =  huey_instance.create_consumer(**config.values)
+    singletonWorker = consumer.worker_class(
+            huey=HUEY_SINGLETON,
+            default_delay=consumer.default_delay,
+            max_delay=consumer.max_delay,
+            backoff=consumer.backoff)
+    singletonProcess= consumer._create_process(singletonWorker,"singletonWorker")
+    consumer.worker_threads.append((singletonWorker,singletonProcess))
     consumer.run()
 
 if __name__ == '__main__':

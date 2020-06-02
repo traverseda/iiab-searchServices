@@ -10,7 +10,7 @@ defaultConf = {
     "data_root": data_dir,
 #    "lcars_api_key": "",
     'lcars_title': ' - lcars',
-    'lcars_tasks_cache': '128',
+#    'lcars_tasks_cache': '128',
     'lcars_tasks_workers': '4',
     #Defaults to 4*128MB of cache?
     #ToDo: Autodetect some saner defaults
@@ -44,8 +44,8 @@ search_root.mkdir(parents=True, exist_ok=True)
 if settings['redis_url']:
     from huey import RedisHuey
     HUEY=RedisHuey(url=settings['redis_url'])
-    HUEY_SINGLETON=RedisHuey(url=settings['redis_url'])
+    HUEY_SINGLETON=RedisHuey("lcars-singleton",url=settings['redis_url'])
 else:
     from huey import SqliteHuey
     HUEY=SqliteHuey(filename=data_root/"queue.sqlite3",cache_mb=10)
-    HUEY_SINGLETON=SqliteHuey(filename=data_root/"queue.sqlite3",cache_mb=10)
+    HUEY_SINGLETON=SqliteHuey("lcars-singleton",filename=data_root/"queue.sqlite3",cache_mb=10)

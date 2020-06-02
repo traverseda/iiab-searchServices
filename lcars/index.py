@@ -108,13 +108,6 @@ def index_html(url):
     )
     return entry
 
-def index_pdf(url):
-    raise NotImplemented
-
-def index_epub(url):
-    raise NotImplemented
-
-
 from whoosh.qparser import MultifieldParser
 from whoosh.qparser import QueryParser
 parser = QueryParser("body", schema=schema)
@@ -131,6 +124,7 @@ def get_last_index_time(url):
         return False
 
 from lcars.settings import HUEY as huey
+from lcars.settings import HUEY_SINGLETON as singleton
 
 def get_highlights(hitItem):
     """Turn a hitItem into a plain dict and generate highlights
@@ -149,15 +143,20 @@ def get_highlights(hitItem):
     itemDict['highlights'] = hitItem.highlights("body",text=hitItem['body'],top=5,)
     return hitItem.fields()
 
+
+
+@singleton.task()
+def save_to_whoosh(document):
+    writer = searchIndex.writer()
+    writer.update_document(**document)
+    writer.commit()
+
 @huey.task()
 def index(url, root=None, force=False):
     #ToDo, automatically delete trees that no longer exist...
     import urllib.parse
     url = urllib.parse.unquote(url)
 
-    from whoosh.writing import AsyncWriter
-    writer = AsyncWriter(searchIndex)
-    #writer = searchIndex.writer()
     last_indexed = get_last_index_time(url)
     if last_indexed:
         metadata = requests.head(url,headers={
@@ -186,8 +185,7 @@ def index(url, root=None, force=False):
             for link in document['links']:
                 if link.startswith(root):
                     index(link)
-        writer.update_document(**document)
-        writer.commit()
+        save_to_whoosh(document)
         return
     print(f"unhandled mimetype `{mimetype}` at {url}")
     return
