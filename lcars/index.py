@@ -169,13 +169,18 @@ def shutdown():
 
 @singleton.task()
 def save_to_whoosh(document):
+    global writer
     assert document['url']
     try:
         writer.update_document(**document)
     except Exception as e:
-        writer.close()
-        setup()
+        oldwriter = writer
+        try: oldwriter.close()
+        except: pass
+        from whoosh.writing import BufferedWriter
+        writer = BufferedWriter(searchIndex, period=60, limit=40)
         raise
+    return document['url']
 
 @huey.task()
 def index(url, root=None, force=False):
@@ -213,4 +218,4 @@ def index(url, root=None, force=False):
         save_to_whoosh(document)
         return
     print(f"unhandled mimetype `{mimetype}` at {url}")
-    return
+    return url
