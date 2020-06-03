@@ -42,9 +42,9 @@ search_root=data_root/"searchIndex"
 search_root.mkdir(parents=True, exist_ok=True)
 
 if settings['redis_url']:
-    from huey import RedisHuey
-    HUEY=RedisHuey(url=settings['redis_url'])
-    HUEY_SINGLETON=RedisHuey("lcars-singleton",url=settings['redis_url'])
+    from huey import PriorityRedisHuey
+    HUEY=PriorityRedisHuey(url=settings['redis_url'])
+    HUEY_SINGLETON=PriorityRedisHuey("lcars-singleton",url=settings['redis_url'])
 else:
     from huey import SqliteHuey
     HUEY=SqliteHuey(filename=data_root/"queue.sqlite3",cache_mb=10)
