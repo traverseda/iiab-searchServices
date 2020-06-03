@@ -41,11 +41,13 @@ def queue_status():
     import collections
     from lcars.settings import HUEY, HUEY_SINGLETON
     import lcars.tasks
-    pending = (c.__class__ for c in HUEY.pending()+HUEY_SINGLETON.pending())
-    pending = ('.'.join((c.__module__, c.__qualname__)) for c in pending)
-    pending = collections.Counter(pending)
+#    pending = (c.__class__ for c in HUEY.pending()+HUEY_SINGLETON.pending())
+#    pending = ('.'.join((c.__module__, c.__qualname__)) for c in pending)
+#    pending = collections.Counter(pending)
     return {
-        "pending": dict(pending),
+        "queue_size": HUEY.storage.queue_size(),
+        "queue_singleton_size": HUEY_SINGLETON.storage.queue_size(),
+    #    "pending": dict(pending),
     }
     pass
 
