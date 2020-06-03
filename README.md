@@ -81,8 +81,8 @@ see how that works
 ## Quickstart
 
 ```bash
-pip install --user pipx
-pipx ensurepath
+pip3 install --user pipx
+python3 -m pipx ensurepath
 pipx install git+https://github.com/traverseda/iiab-searchServices.git --force
 lcars-tasks & #Run tasks in the background
 lcars-server & #Run web server in the background
