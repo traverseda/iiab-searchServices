@@ -141,19 +141,20 @@ def get_highlights(hitItem):
         document = mimetype_handlers[mimetype](hitItem['url'])
         itemDict['body'] = document['body']
     itemDict['highlights'] = hitItem.highlights("body",text=hitItem['body'],top=5,)
+    itemDict['highlights'] = itemDict['highlights'] or itemDict['body'][:300] + " [...]"
     return hitItem.fields()
 
 seenurls = dict()
 
 @singleton.task()
-def dedupe_urls(links):
+def dedupe_urls(links, root=""):
     for url in links:
         now = int(time.time())
         timestamp = getattr(seenurls,url,0)
         if timestamp > now-30*60:
             return
         else:
-            index(url)
+            index(url, root=root)
             seenurls[url]=now
 
 
@@ -170,16 +171,12 @@ def shutdown():
 @singleton.task()
 def save_to_whoosh(document):
     global writer
-    assert document['url']
     try:
         writer.update_document(**document)
-    except Exception as e:
-        oldwriter = writer
-        try: oldwriter.close()
-        except: pass
+    except Exception as E:
+        from huey import RetryTask
         from whoosh.writing import BufferedWriter
         writer = BufferedWriter(searchIndex, period=60, limit=40)
-        raise
     return document['url']
 
 @huey.task()
@@ -214,7 +211,8 @@ def index(url, root=None, force=False):
             raise Exception(err) from e
         if root:
             links = [link for link in document['links'] if link.startswith(root)]
-            dedupe_urls(links)
+            dedupe_urls(links, root=root)
+        document = {k:v for k,v in document.items() if v}
         save_to_whoosh(document)
         return
     print(f"unhandled mimetype `{mimetype}` at {url}")

@@ -75,7 +75,6 @@ def info():
     from lcars.index import searchIndex, schema
     return {
         "doc_count": searchIndex.doc_count(),
-        "uncleaned_docs":searchIndex.doc_count()-searchIndex.doc_count(),
         "last_modified": searchIndex.last_modified(),
         "schema": schema.names(),
     }
