@@ -152,7 +152,7 @@ def dedupe_urls(links, root=""):
         now = int(time.time())
         timestamp = seenurls.get(url,0)
         if timestamp > now-30*60:
-            return
+            pass
         else:
             index(url, root=root)
             seenurls[url]=now
