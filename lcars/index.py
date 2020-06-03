@@ -144,20 +144,6 @@ def get_highlights(hitItem):
     itemDict['highlights'] = itemDict['highlights'] or itemDict['body'][:300] + " [...]"
     return hitItem.fields()
 
-seenurls = dict()
-
-@singleton.task()
-def dedupe_urls(links, root=""):
-    for url in links:
-        now = int(time.time())
-        timestamp = seenurls.get(url,0)
-        if timestamp > now-30*60:
-            pass
-        else:
-            index(url, root=root)
-            seenurls[url]=now
-
-
 @singleton.on_startup()
 def startup():
     global writer
@@ -211,9 +197,16 @@ def index(url, root=None, force=False):
             raise Exception(err) from e
         if root:
             links = [link for link in document['links'] if link.startswith(root)]
-            dedupe_urls(links, root=root)
+            for url in links:
+                lastIndexed = huey.get(url, peek=True)
+                if lastIndexed and lastIndexed > int(time.time())-30*60: #A half hour
+                    continue
+                huey.put(url, int(time.time()))
+                task = index.s(url, root=root)
+                task.id = url
+                result = huey.enqueue(task)
         document = {k:v for k,v in document.items() if v}
         save_to_whoosh(document)
         return
     print(f"unhandled mimetype `{mimetype}` at {url}")
-    return url
+    return
