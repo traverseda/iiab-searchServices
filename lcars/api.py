@@ -51,9 +51,15 @@ def queue_status():
 
 @hug.cli()
 def monitor():
-    """Watch the log
+    """Watch the queue
     """
-    raise NotImplementedError
+    import time
+    print("Gather data...")
+    while True:
+        startCount=info()['doc_count']
+        time.sleep(4)
+        endcount = info()['doc_count']-startCount
+        print(endcount/4, "documents indexed per second")
 
 @hug.cli(output=hug.output_format.pretty_json)
 def env_info():

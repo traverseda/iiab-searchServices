@@ -154,7 +154,7 @@ def save_to_whoosh(document):
                 writer.update_document(**document)
             break
         except whoosh.index.LockError:
-            time.sleep(0.1)
+            time.sleep(0.05)
     return
 
 @huey.task()
