@@ -2,6 +2,7 @@ import whoosh
 from whoosh.fields import Schema, TEXT, KEYWORD, ID, STORED, IDLIST, DATETIME
 from whoosh.analysis import StemmingAnalyzer
 from whoosh import fields, index
+from huey.utils import Error
 
 schema = Schema(url=ID(stored=True,unique=True),
                 title=ID(stored=True),
@@ -54,7 +55,9 @@ def cache_if_slow(func):
     return wrapper
 
 
-@handle_mimetype("application/pdf","application/epub+zip")
+@handle_mimetype("application/pdf","application/epub+zip","application/msword",
+                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                 )
 @cache_if_slow
 def index_textract(url):
     import textract, tempfile
@@ -168,6 +171,7 @@ def save_to_whoosh(document):
 @huey.task()
 def index(url, root=None, force=False):
     #ToDo, automatically delete trees that no longer exist...
+    #ToDo, at some point this code got messy. Clean it up.
     import urllib.parse
     url = urllib.parse.unquote(url)
 
@@ -195,10 +199,12 @@ def index(url, root=None, force=False):
     handler-name: {mimetype_handlers[mimetype]}
     handler-file: {mimetype_handlers[mimetype].__code__.co_filename}"""
             raise Exception(err) from e
-        if root:
+        if root and document.get('links',False):
             links = [link for link in document['links'] if link.startswith(root)]
             for url in links:
                 lastIndexed = huey.get(url, peek=True)
+                if isinstance(lastIndexed,Error):
+                    continue
                 if lastIndexed and lastIndexed > int(time.time())-30*60: #A half hour
                     continue
                 huey.put(url, int(time.time()))
@@ -206,7 +212,9 @@ def index(url, root=None, force=False):
                 task.id = url
                 result = huey.enqueue(task)
         document = {k:v for k,v in document.items() if v}
-        save_to_whoosh(document)
+        task = save_to_whoosh.s(document)
+        task.id=document['url']
+        result = singleton.enqueue(task)
         return
     print(f"unhandled mimetype `{mimetype}` at {url}")
     return
