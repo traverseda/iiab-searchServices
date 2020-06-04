@@ -146,15 +146,26 @@ def get_highlights(hitItem):
     itemDict['highlights'] = itemDict['highlights'] or itemDict['body'][:300] + " [...]"
     return hitItem.fields()
 
+from lcars.settings import HUEY_SINGLETON as singleton
+
+from huey import crontab
+@huey.periodic_task(crontab(minute='*/1'))
+@huey.lock_task('optimize_searchdb')
+def tidy_segments():
+    searchIndex.optimize()
+
 def save_to_whoosh(document):
-    while True:
-        #Loop until we acquire the lock...
-        try:
-            with searchIndex.writer() as writer:
-                writer.update_document(**document)
-            break
-        except whoosh.index.LockError:
-            time.sleep(0.05)
+    import uuid
+    from whoosh import index
+    from whoosh.writing import SegmentWriter
+    ix = index.open_dir(indexDir)
+    writer = SegmentWriter(ix, _lk=False)
+    filename = str(uuid.uuid4())
+    tempstorage = writer.temp_storage()
+    with tempstorage.create_file(filename).raw_file() as f:
+        writer.update_document(**document)
+    tempstorage.delete_file(filename)
+    writer._finalize_segment()
     return
 
 @huey.task()
