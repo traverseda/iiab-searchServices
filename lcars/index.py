@@ -7,7 +7,7 @@ from huey.utils import Error
 schema = Schema(url=ID(stored=True,unique=True),
                 title=ID(stored=True),
                 links=IDLIST(stored=True),
-                body=TEXT(analyzer=StemmingAnalyzer(),stored=True),
+                body=TEXT(analyzer=StemmingAnalyzer(cachesize=-1),stored=True),
                 last_indexed=DATETIME(stored=True),
                 tags=KEYWORD(lowercase=True,stored=True,))
 
@@ -147,26 +147,22 @@ def get_highlights(hitItem):
     itemDict['highlights'] = itemDict['highlights'] or itemDict['body'][:300] + " [...]"
     return hitItem.fields()
 
-@singleton.on_startup()
+#@singleton.on_startup()
 def startup():
     global writer
     from whoosh.writing import BufferedWriter
-    writer = BufferedWriter(searchIndex, period=60, limit=40)
+    writer=searchIndex.writer()
+    #writer = BufferedWriter(searchIndex, period=30, limit=40)
 
-@singleton.on_shutdown()
+#@singleton.on_shutdown()
 def shutdown():
     writer.commit()
 
 @singleton.task()
 def save_to_whoosh(document):
-    global writer
-    try:
+    with searchIndex.writer() as writer:
         writer.update_document(**document)
-    except Exception as E:
-        from huey import RetryTask
-        from whoosh.writing import BufferedWriter
-        writer = BufferedWriter(searchIndex, period=60, limit=40)
-    return document['url']
+    return
 
 @huey.task()
 def index(url, root=None, force=False):
@@ -175,7 +171,8 @@ def index(url, root=None, force=False):
     import urllib.parse
     url = urllib.parse.unquote(url)
 
-    last_indexed = get_last_index_time(url)
+    #last_indexed = get_last_index_time(url)
+    last_indexed = False
     if last_indexed:
         metadata = requests.head(url,headers={
             'If-Modified-Since':last_indexed,
@@ -205,7 +202,7 @@ def index(url, root=None, force=False):
                 lastIndexed = huey.get(url, peek=True)
                 if isinstance(lastIndexed,Error):
                     continue
-                if lastIndexed and lastIndexed > int(time.time())-30*60: #A half hour
+                if lastIndexed: # and lastIndexed > int(time.time())-30*60: #A half hour
                     continue
                 huey.put(url, int(time.time()))
                 task = index.s(url, root=root)

@@ -6,7 +6,7 @@ from appdirs import user_data_dir
 data_dir=user_data_dir("LCARS", "traverseda")
 
 defaultConf = {
-    "redis_url": "",
+    "redis_url": "", #export redis_url="redis://127.0.0.1:6379"
     "data_root": data_dir,
 #    "lcars_api_key": "",
     'lcars_title': ' - lcars',
