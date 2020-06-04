@@ -127,7 +127,6 @@ def get_last_index_time(url):
         return False
 
 from lcars.settings import HUEY as huey
-from lcars.settings import HUEY_SINGLETON as singleton
 
 def get_highlights(hitItem):
     """Turn a hitItem into a plain dict and generate highlights
@@ -147,21 +146,15 @@ def get_highlights(hitItem):
     itemDict['highlights'] = itemDict['highlights'] or itemDict['body'][:300] + " [...]"
     return hitItem.fields()
 
-#@singleton.on_startup()
-def startup():
-    global writer
-    from whoosh.writing import BufferedWriter
-    writer=searchIndex.writer()
-    #writer = BufferedWriter(searchIndex, period=30, limit=40)
-
-#@singleton.on_shutdown()
-def shutdown():
-    writer.commit()
-
-@singleton.task()
 def save_to_whoosh(document):
-    with searchIndex.writer() as writer:
-        writer.update_document(**document)
+    while True:
+        #Loop until we acquire the lock...
+        try:
+            with searchIndex.writer() as writer:
+                writer.update_document(**document)
+            break
+        except whoosh.index.LockError:
+            time.sleep(0.1)
     return
 
 @huey.task()
@@ -209,9 +202,7 @@ def index(url, root=None, force=False):
                 task.id = url
                 result = huey.enqueue(task)
         document = {k:v for k,v in document.items() if v}
-        task = save_to_whoosh.s(document)
-        task.id=document['url']
-        result = singleton.enqueue(task)
+        save_to_whoosh(document)
         return
     print(f"unhandled mimetype `{mimetype}` at {url}")
     return
