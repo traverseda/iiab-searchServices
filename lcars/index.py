@@ -146,26 +146,47 @@ def get_highlights(hitItem):
     itemDict['highlights'] = itemDict['highlights'] or itemDict['body'][:300] + " [...]"
     return hitItem.fields()
 
-from lcars.settings import HUEY_SINGLETON as singleton
+@huey.on_startup()
+def setup_writer():
+    global writer
+    global seg_doc_count
+    writer = None
+    seg_doc_count=0
 
-from huey import crontab
-@huey.periodic_task(crontab(minute='*/1'))
-@huey.lock_task('optimize_searchdb')
-def tidy_segments():
-    searchIndex.optimize()
+@huey.task(priority=10)
+@huey.lock_task("whoosh-optimize")
+def optimize_whoosh(fieldnames, segment):
+    with searchIndex.writer() as writer:
+        from whoosh.index import TOC, clean_files
+        toc = TOC(writer.schema, (segment,*writer.segments), writer.generation+1)
+        toc.write(writer.storage, writer.indexname)
+    #searchIndex.writer().commit()
+
+import threading
+#This is multiprocess safe, but this makes it safe to use
+#with thread-based workers as well.
+# We don't use huey's task lock because that would lock across processes.
+whooshlock = threading.Lock()
 
 def save_to_whoosh(document):
-    import uuid
-    from whoosh import index
-    from whoosh.writing import SegmentWriter
-    ix = index.open_dir(indexDir)
-    writer = SegmentWriter(ix, _lk=False)
-    filename = str(uuid.uuid4())
-    tempstorage = writer.temp_storage()
-    with tempstorage.create_file(filename).raw_file() as f:
-        writer.update_document(**document)
-    tempstorage.delete_file(filename)
-    writer._finalize_segment()
+    whooshlock.acquire()
+    global writer
+    global seg_doc_count
+    if not writer:
+        from whoosh import index
+        from whoosh.writing import SegmentWriter
+        ix = index.open_dir(indexDir)
+        writer = SegmentWriter(ix, _lk=False)
+    writer.update_document(**document)
+    seg_doc_count+=1
+    if seg_doc_count > 10:
+        fieldnames = writer.pool.fieldnames
+        segment = writer._finalize_segment()
+        optimize_whoosh(fieldnames, segment)
+        print("*"*20,segment)
+        writer = None
+        seg_doc_count=0
+    whooshlock.release()
     return
 
 @huey.task()
