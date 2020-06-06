@@ -155,12 +155,10 @@ def setup_writer():
 
 @huey.task(priority=10)
 @huey.lock_task("whoosh-optimize")
-def optimize_whoosh(fieldnames, segment):
-    with searchIndex.writer() as writer:
-        from whoosh.index import TOC, clean_files
-        toc = TOC(writer.schema, (segment,*writer.segments), writer.generation+1)
-        toc.write(writer.storage, writer.indexname)
-    #searchIndex.writer().commit()
+def optimize_whoosh(segment):
+    writer = searchIndex.writer()
+    writer.segments.append(segment)
+    writer.commit()
 
 import threading
 #This is multiprocess safe, but this makes it safe to use
@@ -179,11 +177,10 @@ def save_to_whoosh(document):
         writer = SegmentWriter(ix, _lk=False)
     writer.update_document(**document)
     seg_doc_count+=1
-    if seg_doc_count > 10:
+    if seg_doc_count > 64:
         fieldnames = writer.pool.fieldnames
         segment = writer._finalize_segment()
-        optimize_whoosh(fieldnames, segment)
-        print("*"*20,segment)
+        optimize_whoosh(segment)
         writer = None
         seg_doc_count=0
     whooshlock.release()
