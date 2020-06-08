@@ -166,6 +166,12 @@ import threading
 # We don't use huey's task lock because that would lock across processes.
 whooshlock = threading.Lock()
 
+@huey.on_shutdown()
+def finalize_index():
+    if writer:
+        segment = writer._finalize_segment()
+        optimize_whoosh(segment)
+
 def save_to_whoosh(document):
     whooshlock.acquire()
     global writer
