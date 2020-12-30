@@ -8,12 +8,9 @@ data_dir=user_data_dir("LCARS", "traverseda")
 defaultConf = {
     "redis_url": "", #export redis_url="redis://127.0.0.1:6379"
     "data_root": data_dir,
-#    "lcars_api_key": "",
+#    "lcars_api_key": "", 
+    'lcars_tasks_workers': '12',
     'lcars_title': ' - lcars',
-#    'lcars_tasks_cache': '128',
-    'lcars_tasks_workers': '4',
-    #Defaults to 4*128MB of cache?
-    #ToDo: Autodetect some saner defaults
     'lcars_tagline':' Library Computer Access/Retrieval System',
     #Pipe and comma seperated list of extra menu links
     "extra_menu_urls": "",#example1,http://example.com|example2,http://example.com
@@ -47,3 +44,6 @@ if settings['redis_url']:
 else:
     from huey import SqliteHuey
     HUEY=SqliteHuey(filename=data_root/"queue.sqlite3")
+
+if __name__ == '__main__':
+    print(printable_settings())

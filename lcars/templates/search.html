@@ -3,17 +3,17 @@
 {% block content %}
 
 <div class='searchInfo'>
-    <span>Query: <code>{{searchResult.query_parsed}}</code></span>
-    <span>Results: {{searchResult.result_count}}</span>
+    {#    <span>Query: <code>{{searchResult.query_parsed}}</code></span>
+    <span>Results: {{searchResult.result_count}}</span>#}
 </div>
-{% if searchResult.corrected != searchResult.query_text %}
+{#{% if searchResult.corrected != searchResult.query_text %}
 <p>Did you mean: <a href="/search/?q={{searchResult.corrected}}">{{searchResult.corrected}}</a></p>
-{% endif %}
-{% for match in  searchResult.results %}
+{% endif %} #}
+{% for item in searchResult.documents %}
 <article class="searchResult">
-    <a href="{{match.url}}"><h3>{{match.title}}</h3></a>
-    <h4>{{match.url}}</h4>
-    {{match.highlights|safe}}
+    <a href="{{item.url}}"><h3>{{item.title}}</h3></a>
+    <h4>{{item.url}}</h4>
+    <p>{{item.get_body()[:400]}}</p>
     <hr>
 </article>
 {% else %}
@@ -21,7 +21,7 @@
 {% endfor %}
 <form action="/search/" method="get" class="searchPagination">
     <input type="hidden" name="q" value="{{request.args.get('q',"1")}}">
-    {% for i in range(1,searchResult.result_count//searchResult.limit+2) %}
+    {% for i in range(1,searchResult.count//searchResult.limit+2) %}
     {% if i|string == request.args.get('page','1') %}
     <button type="submit" name="page" value="{{i}}">{{i}}</button> 
     {% else %}

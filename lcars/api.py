@@ -1,26 +1,18 @@
 import hug
 import asyncio
+from playhouse.shortcuts import model_to_dict
 
 @hug.cli(output=hug.output_format.pretty_json)
 @hug.get()
 def search(query:str, offset:int=0, limit:int=10):
-    from lcars.index import parser, searchIndex, get_highlights
-    with searchIndex.searcher() as searcher:
-        queryParsed = parser.parse(query)
-        corrected = searcher.correct_query(queryParsed, query)
-        results = searcher.search(queryParsed,limit=offset+limit)
-        results.fragmenter.surround = 50
-        data = dict(
-            offset=offset,limit=limit,
-            query_text=query,
-            query_parsed=str(queryParsed),
-            corrected=corrected.string,
-            result_count=results.estimated_length(),
-            #Turns out this is no slow than the built in paginator...
-            # which is to to say higher pages will be slower regardless.
-            results=list(map(get_highlights,results[offset:offset+limit])),
-        )
-        return data
+    from lcars.index import search
+    count = search(query).count()
+    return {"count":count,
+            "limit":limit,
+            "offset":offset,
+
+            "documents":search(query).limit(limit).offset(offset).select(),
+            }
 
 @hug.cli()
 @hug.get()
@@ -78,11 +70,9 @@ def env_info():
 def info():
     """Information about the search index
     """
-    from lcars.index import searchIndex, schema
+    from lcars.index import Document
     return {
-        "doc_count": searchIndex.doc_count(),
-        "last_modified": searchIndex.last_modified(),
-        "schema": schema.names(),
+        "doc_count": Document.select().count(),
     }
 
 def main():

@@ -1,25 +1,67 @@
-import whoosh
-from whoosh.fields import Schema, TEXT, KEYWORD, ID, STORED, IDLIST, DATETIME
-from whoosh.analysis import StemmingAnalyzer
-from whoosh import fields, index
 from huey.utils import Error
+import logging
 
-schema = Schema(url=ID(stored=True,unique=True),
-                title=ID(stored=True),
-                links=IDLIST(stored=True),
-                body=TEXT(analyzer=StemmingAnalyzer(cachesize=-1),stored=True),
-                last_indexed=DATETIME(stored=True),
-                tags=KEYWORD(lowercase=True,stored=True,))
+import peewee
+import datetime
+from playhouse.sqlite_ext import *
+try:
+    from playhouse.sqlite_ext import CSqliteExtDatabase as SqliteExtDatabase
+except ImportError:
+    pass
 
 import lcars.settings as settings
 
 indexDir = settings.data_root/"searchIndex"
 (settings.data_root/"searchIndex").mkdir(parents=True, exist_ok=True)
-try:
-    searchIndex = index.open_dir(indexDir)
-except whoosh.index.EmptyIndexError:
-    searchIndex = index.create_in(settings.data_root/"searchIndex", schema)
+db = SqliteExtDatabase(indexDir/'search_db.sqlite3',regexp_function=True,
+                       timeout=60,#timeout not working?
+                       pragmas={
+                           'journal_mode': 'wal',
+                           'cache_size': -1024 * 64}
+                       )
 
+class Document(Model):
+    # Canonical source of data, stored in a regular table.
+    url = TextField(null=False, unique=True)
+    title = TextField(unique=False,default="")
+    body = TextField(default="")
+    mtime = DateTimeField(default=datetime.datetime.now)
+    tags=TextField(default="")
+
+    def get_body(self):
+        if self.body: return self.body
+        else:
+            metadata = requests.head(self.url)
+            mimetype = metadata.headers['content-type'].split(";")[0]
+            document = mimetype_handlers[mimetype](self.url)
+            return document['body']
+
+    class Meta:
+        database = db
+
+class DocumentIndex(FTSModel):
+    # Full-text search index.
+    rowid = RowIDField()
+    title = SearchField()
+    body = SearchField()
+
+    class Meta:
+        database = db
+        # Use the porter stemming algorithm to tokenize content.
+        options = {'tokenize': 'porter'}
+
+def search(phrase):
+    # Query the search index and join the corresponding Document
+    # object on each search result.
+    return (Document
+            .select()
+            .join(
+                DocumentIndex,
+                on=(Document.id == DocumentIndex.rowid))
+            .where(DocumentIndex.match(phrase))
+            .order_by(DocumentIndex.bm25()))
+
+db.create_tables([Document, DocumentIndex])
 #print("Index Location:",settings.data_root/"searchIndex")
 
 from selectolax.parser import HTMLParser
@@ -39,7 +81,7 @@ def handle_mimetype(*mimetypes):
     return register_mimetype
 
 def cache_if_slow(func):
-    """Moves body to body_cached if text takes too long
+    """Moves body to _stored_body if text takes too long
     to collect.
     """
     #ToDo, some way to differentiate between a missing body
@@ -49,7 +91,9 @@ def cache_if_slow(func):
         start=time.monotonic()
         result = func(*args,**kwargs)
         timeDiff=time.monotonic()-start
-        if timeDiff < 0.4:
+        if timeDiff > 0.4:
+            result['_stored_body']=result['body']
+        else:
             result['_stored_body']=""
         return result
     return wrapper
@@ -111,10 +155,6 @@ def index_html(url):
     )
     return entry
 
-from whoosh.qparser import MultifieldParser
-from whoosh.qparser import QueryParser
-parser = QueryParser("body", schema=schema)
-
 def get_last_index_time(url):
     #ToDo: cache and otherwise optimize this, as it gets called
     # a lot.
@@ -146,16 +186,29 @@ def get_highlights(hitItem):
     itemDict['highlights'] = itemDict['highlights'] or itemDict['body'][:300] + " [...]"
     return hitItem.fields()
 
-def save_to_whoosh(document):
-    while True:
-        #Loop until we acquire the lock...
+from retrying import retry
+
+#@retry(stop_max_delay=60000)
+def save_to_sqlite(document):
+    with db.atomic():
+        db_content={
+            "url":document['url'],
+            "title":document['title'],
+            "body":document.get('_stored_body',""),
+        }
+
+        Document.insert(**db_content).on_conflict(conflict_target=Document.url,update=db_content).execute()
+        d=Document.get(url=document['url'])
+
         try:
-            with searchIndex.writer() as writer:
-                writer.update_document(**document)
-            break
-        except whoosh.index.LockError:
-            time.sleep(0.05)
-    return
+            DocumentIndex.insert({
+                   DocumentIndex.rowid: d.id,
+                   DocumentIndex.title: document['title'],
+                   DocumentIndex.body: document['body']}).execute()
+        except:
+            DocumentIndex.update({
+                   DocumentIndex.title: document['title'],
+                   DocumentIndex.body: document['body']}).where(DocumentIndex.rowid==d.id).execute()
 
 @huey.task()
 def index(url, root=None, force=False):
@@ -202,7 +255,7 @@ def index(url, root=None, force=False):
                 task.id = url
                 result = huey.enqueue(task)
         document = {k:v for k,v in document.items() if v}
-        save_to_whoosh(document)
+        save_to_sqlite(document)
         return
-    print(f"unhandled mimetype `{mimetype}` at {url}")
+    logging.info(f"unhandled mimetype `{mimetype}` at {url}")
     return

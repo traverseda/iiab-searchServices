@@ -42,7 +42,7 @@ def search():
                         searchResult=result,
                         )
 
-    if not result['results']: return t, 404
+    if not result: return t, 404
     return t
 
 @app.route('/')

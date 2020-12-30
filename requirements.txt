@@ -2,10 +2,11 @@ requests
 flask
 gunicorn
 jinja2
-whoosh
 selectolax
+scout==3.0.3
 hug
 huey
 textract
 appdirs
 environs
+retrying

@@ -55,7 +55,7 @@ setup(
     # project page. What does your project relate to?
     #
     # Note that this is a string of words separated by whitespace, not a list.
-    keywords='search whoosh flask',  # Optional
+    keywords='search flask',  # Optional
 
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().

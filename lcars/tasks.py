@@ -1,3 +1,4 @@
+import os
 import lcars.index
 from lcars.settings import HUEY
 from lcars.settings import settings
@@ -7,9 +8,13 @@ from huey.consumer_options import ConsumerConfig, OptionParserHandler
 from huey.utils import load_class
 import collections
 
+import logging
+from rich.logging import RichHandler
+
 workers = int(settings['lcars_tasks_workers'])
 
 def main():
+    os.nice(10)
     parser_handler = OptionParserHandler()
     parser = parser_handler.get_option_parser()
     options, args = parser.parse_args()
