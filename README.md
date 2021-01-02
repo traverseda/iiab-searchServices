@@ -4,7 +4,8 @@
 ![Home page](home.png)
 ![Results page](results.png)
 
-Simple website search using flask/whoosh. Originally I was going to use
+Simple website search using flask and sqlite's full text search. 
+Originally I was going to use
 OpenSemanticSearch, but I found it far too difficult to get working on armbian,
 so I settled on simple text search instead.
 
@@ -59,18 +60,6 @@ have higher system requirments.
      large public archive of mostly pdfs and epubs.
 
 # Technology
-
-We use the "whoosh" search engine because it's reasonably responive, doesn't
-take a huge amount of memory, it's easy to deploy, and it's easier to work with
-than other libraries like xapian. In order to meet our goals we need a search
-engine *library*, not a server/service, which makes a lot of search backend
-inaccesable.
-
-That being said I think whoosh is a pretty good choice over-all, it seems to
-create indexes an order of [magnitude faster than xapian at
-indexing](https://stackoverflow.com/a/30452913) and is only a little bit slower
-at querying. Presumably if run under pypy it would be faster than xapian all
-around? Hopefully that performance scales to bigger datasets.
 
 We use textract to extract text from more complicated dataformats, you can
 see how that works

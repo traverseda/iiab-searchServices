@@ -4,9 +4,12 @@ from playhouse.shortcuts import model_to_dict
 
 @hug.cli()
 def rebuild_index():
+    from lcars.index import Document
     from lcars.index import DocumentIndex
-    print(DocumentIndex.rebuild())
-    print(DocumentIndex.optimize())
+    doc_count=Document.select().count()
+    DocumentIndex.rebuild()
+    DocumentIndex.optimize()
+    print(f"Re-generated indexes for {doc_count} documents")
 
 @hug.cli(output=hug.output_format.pretty_json)
 @hug.get()
@@ -14,6 +17,7 @@ def search(query:str, offset:int=0, limit:int=10):
     from lcars.index import search
     count = search(query).count()
     query=search(query).limit(limit).offset(offset)
+    print(query)
     return {"count":count,
             "limit":limit,
             "offset":offset,

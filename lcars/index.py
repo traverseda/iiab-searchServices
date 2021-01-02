@@ -23,6 +23,9 @@ db = SqliteExtDatabase(indexDir/'search_db.sqlite3',regexp_function=True,
                            'synchronous': 0}
                        )
 
+import requests
+session=requests.Session()
+
 class Document(Model):
     # Canonical source of data, stored in a regular table.
     url = TextField(null=False, unique=True)
@@ -34,7 +37,7 @@ class Document(Model):
     def get_body(self):
         if self.body: return self.body
         else:
-            metadata = requests.head(self.url)
+            metadata = session.head(self.url)
             mimetype = metadata.headers['content-type'].split(";")[0]
             document = mimetype_handlers[mimetype](self.url)
             return document['body']
@@ -73,7 +76,6 @@ db.create_tables([Document, DocumentIndex])
 
 from selectolax.parser import HTMLParser
 import time, datetime
-import requests
 import unicodedata
 from functools import wraps
 
@@ -89,7 +91,7 @@ def handle_mimetype(*mimetypes):
 
 @handle_mimetype("text/html")
 def index_html(url):
-    r = requests.get(url)
+    r = session.get(url)
     tree = HTMLParser(r.text)
     #Remove non-text "text" content.
     for tag in tree.css('script'):
@@ -108,6 +110,37 @@ def index_html(url):
         body=text,
         last_indexed=datetime.datetime.utcnow(),
         title=title
+    )
+    return entry
+
+
+@handle_mimetype("application/pdf","application/epub+zip","application/msword",
+                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                 )
+def index_textract(url):
+    import textract, tempfile
+    response = requests.get(url,stream=True)
+    suffix = "."+url.split(".")[-1]
+    if suffix not in textract.parsers._get_available_extensions():
+        import mimetypes
+        mimetypes.init()
+        mimetype = response.headers['content-type'].split(";")[0]
+        suffix=mimetypes.guess_extension(mimetype)
+    suffix = "-"+url.split('/')[-1]
+    tmpfile = tempfile.NamedTemporaryFile("wb",suffix=suffix,prefix="lcars-searchspider-",buffering=False)
+    with tmpfile as fp:
+        #ToDo: This only works on linux
+        for chunk in response.iter_content(10000):
+            fp.write(chunk)
+        fp.flush()
+        text = textract.process(fp.name,encoding="utf-8")
+    if not isinstance(text,str):
+        text=text.decode("utf-8")
+    entry = dict(
+        url=url,
+        body=text,
+        last_indexed=datetime.datetime.utcnow(),
+        title=url.split('/')[-1] or url,
     )
     return entry
 
@@ -138,6 +171,15 @@ def save_to_sqlite(document):
 
         Document.insert(**db_content).on_conflict(conflict_target=Document.url,update=db_content).execute()
         d=Document.get(url=document['url'])
+        try:
+            DocumentIndex.insert({
+                   DocumentIndex.rowid: d.id,
+                   DocumentIndex.title: d.title,
+                   DocumentIndex.body: d.body}).execute()
+        except:
+            DocumentIndex.update({
+                   DocumentIndex.title: d.title,
+                   DocumentIndex.body: d.body}).where(DocumentIndex.rowid==d.id).execute()
 
 @huey.task()
 def index(url, root=None, force=False):
@@ -149,14 +191,14 @@ def index(url, root=None, force=False):
     #last_indexed = get_last_index_time(url)
     last_indexed = False
     if last_indexed:
-        metadata = requests.head(url,headers={
+        metadata = session.head(url,headers={
             'If-Modified-Since':last_indexed,
         })
         if metadata.status_code==304:
             print(f"Not indexing `{url}` as it hasn't been modified")
             return
     else:
-        metadata = requests.head(url)
+        metadata = session.head(url)
     mimetype = metadata.headers['content-type'].split(";")[0]
     if mimetype not in mimetype_handlers.keys():
         import mimetypes as mtypes
