@@ -13,7 +13,7 @@
 <article class="searchResult">
     <a href="{{item.url}}"><h3>{{item.title}}</h3></a>
     <h4>{{item.url}}</h4>
-    <p>{{item.get_body()[:400]}}</p>
+    <p>{{item.snippet|safe}}</p>
     <hr>
 </article>
 {% else %}

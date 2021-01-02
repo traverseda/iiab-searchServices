@@ -17,7 +17,10 @@ db = SqliteExtDatabase(indexDir/'search_db.sqlite3',regexp_function=True,
                        timeout=60,#timeout not working?
                        pragmas={
                            'journal_mode': 'wal',
-                           'cache_size': -1024 * 64}
+                           'cache_size': -1 * 64000,  # 64MB
+                           'foreign_keys': 1,
+                           'ignore_check_constraints': 0,
+                           'synchronous': 0}
                        )
 
 class Document(Model):
@@ -48,18 +51,22 @@ class DocumentIndex(FTSModel):
     class Meta:
         database = db
         # Use the porter stemming algorithm to tokenize content.
-        options = {'tokenize': 'porter'}
+        options = {'tokenize': 'porter','content': Document,}
 
 def search(phrase):
     # Query the search index and join the corresponding Document
     # object on each search result.
     return (Document
-            .select()
+            .select(Document,
+                    #This controls the snippet generation, as per https://www.sqlite.org/fts3.html#the_snippet_function
+                    fn.snippet(DocumentIndex._meta.entity,"<b>","</b>","<b>...</b>",-1,-128).alias('snippet'),
+                    )
             .join(
                 DocumentIndex,
                 on=(Document.id == DocumentIndex.rowid))
             .where(DocumentIndex.match(phrase))
-            .order_by(DocumentIndex.bm25()))
+            .order_by(DocumentIndex.bm25())
+            )
 
 db.create_tables([Document, DocumentIndex])
 #print("Index Location:",settings.data_root/"searchIndex")
@@ -80,58 +87,7 @@ def handle_mimetype(*mimetypes):
         return func
     return register_mimetype
 
-def cache_if_slow(func):
-    """Moves body to _stored_body if text takes too long
-    to collect.
-    """
-    #ToDo, some way to differentiate between a missing body
-    # and one that is intentionally left blank...
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        start=time.monotonic()
-        result = func(*args,**kwargs)
-        timeDiff=time.monotonic()-start
-        if timeDiff > 0.4:
-            result['_stored_body']=result['body']
-        else:
-            result['_stored_body']=""
-        return result
-    return wrapper
-
-
-@handle_mimetype("application/pdf","application/epub+zip","application/msword",
-                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                 )
-@cache_if_slow
-def index_textract(url):
-    import textract, tempfile
-    response = requests.get(url,stream=True)
-    suffix = "."+url.split(".")[-1]
-    if suffix not in textract.parsers._get_available_extensions():
-        import mimetypes
-        mimetypes.init()
-        mimetype = response.headers['content-type'].split(";")[0]
-        suffix=mimetypes.guess_extension(mimetype)
-    suffix = "-"+url.split('/')[-1]
-    tmpfile = tempfile.NamedTemporaryFile("wb",suffix=suffix,prefix="lcars-searchspider-",buffering=False)
-    with tmpfile as fp:
-        #ToDo: This only works on linux
-        for chunk in response.iter_content(10000):
-            fp.write(chunk)
-        fp.flush()
-        text = textract.process(fp.name,encoding="utf-8")
-    if not isinstance(text,str):
-        text=text.decode("utf-8")
-    entry = dict(
-        url=url,
-        body=text,
-        last_indexed=datetime.datetime.utcnow(),
-        title=url.split('/')[-1] or url,
-    )
-    return entry
-
 @handle_mimetype("text/html")
-@cache_if_slow
 def index_html(url):
     r = requests.get(url)
     tree = HTMLParser(r.text)
@@ -168,47 +124,20 @@ def get_last_index_time(url):
 
 from lcars.settings import HUEY as huey
 
-def get_highlights(hitItem):
-    """Turn a hitItem into a plain dict and generate highlights
-    for it.
-    """
-    #ToDo: Investigate whether or not loading this all into memory is
-    # a performance hit? I think the standard hitItem might be lazy-loading
-    # large fields like "body", but I'm not sure if it matters since we
-    # need to load the text to generate highlights anyway?
-    itemDict = hitItem.fields()
-    if not hitItem['body']:
-        metadata = requests.head(hitItem['url'])
-        mimetype = metadata.headers['content-type'].split(";")[0]
-        document = mimetype_handlers[mimetype](hitItem['url'])
-        itemDict['body'] = document['body']
-    itemDict['highlights'] = hitItem.highlights("body",text=hitItem['body'],top=5,)
-    itemDict['highlights'] = itemDict['highlights'] or itemDict['body'][:300] + " [...]"
-    return hitItem.fields()
-
-from retrying import retry
-
-#@retry(stop_max_delay=60000)
 def save_to_sqlite(document):
-    with db.atomic():
+    #Remove extra whitespace...
+    body=(i.strip() for i in document['body'].splitlines())
+    body=(i for i in body if i)
+    body="\n".join(body)
+    with db.atomic("EXCLUSIVE"):
         db_content={
             "url":document['url'],
             "title":document['title'],
-            "body":document.get('_stored_body',""),
+            "body":body,
         }
 
         Document.insert(**db_content).on_conflict(conflict_target=Document.url,update=db_content).execute()
         d=Document.get(url=document['url'])
-
-        try:
-            DocumentIndex.insert({
-                   DocumentIndex.rowid: d.id,
-                   DocumentIndex.title: document['title'],
-                   DocumentIndex.body: document['body']}).execute()
-        except:
-            DocumentIndex.update({
-                   DocumentIndex.title: document['title'],
-                   DocumentIndex.body: document['body']}).where(DocumentIndex.rowid==d.id).execute()
 
 @huey.task()
 def index(url, root=None, force=False):
